@@ -44,13 +44,16 @@ struct MenuBarView: View {
 
     @ViewBuilder
     private var tabContent: some View {
-        switch selectedTab {
-        case 0: todayView
-        case 1: HistoryView(store: statsStore)
-        case 2: appsView
-        case 3: settingsView
-        default: todayView
+        Group {
+            switch selectedTab {
+            case 0: todayView
+            case 1: HistoryView(store: statsStore)
+            case 2: appsView
+            case 3: settingsView
+            default: todayView
+            }
         }
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
     }
 
     private var todayView: some View {
@@ -368,7 +371,9 @@ struct TabButton: View {
 
     var body: some View {
         Button {
-            selection = tag
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selection = tag
+            }
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: icon)
@@ -377,6 +382,7 @@ struct TabButton: View {
                     .font(.caption2)
             }
             .foregroundStyle(isSelected ? .primary : .tertiary)
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.sm)
             .contentShape(Rectangle())

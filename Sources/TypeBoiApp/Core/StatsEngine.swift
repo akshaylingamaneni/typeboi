@@ -10,9 +10,7 @@ final class StatsEngine: ObservableObject {
     private let settings: AppSettings
 
     private var lastEventTime: TimeInterval?
-    private var burstStartTime: TimeInterval?
-    private var burstKeystrokes: Int = 0
-    private var lastPrintableTime: TimeInterval?
+    private var recentKeyTimes: [TimeInterval] = []
     private var wpmUpdateTimer: Timer?
 
     init(store: StatsStore, settings: AppSettings) {
@@ -62,9 +60,7 @@ final class StatsEngine: ObservableObject {
         stats = store.todayStats
         if previousDate != stats.date {
             lastEventTime = nil
-            burstStartTime = nil
-            burstKeystrokes = 0
-            lastPrintableTime = nil
+            recentKeyTimes = []
             currentWPM = 0
             displayedWPM = 0
         }
@@ -141,25 +137,57 @@ final class StatsEngine: ObservableObject {
         stats.apps[bundleID] = appStats
     }
 
+    private var debugLogEnabled = true
+    private var lastLoggedTime: TimeInterval = 0
+
     private func updateCurrentWPM(event: KeyEventContext) {
-        guard event.isPrintable, !event.isAutoRepeat else { return }
+        guard event.isPrintable, !event.isAutoRepeat, !event.isShortcut else { return }
         let now = event.timestamp
-        if let lastPrintableTime {
-            if now - lastPrintableTime > settings.burstGap {
-                burstStartTime = now
-                burstKeystrokes = 0
-            }
-        } else {
-            burstStartTime = now
-            burstKeystrokes = 0
+        let windowSize: TimeInterval = 10.0
+        let minInterval: TimeInterval = 0.03
+
+        let gap = recentKeyTimes.last.map { now - $0 } ?? 0
+
+        if debugLogEnabled {
+            let msg = "KEY: gap=\(String(format: "%.4f", gap))s code=\(event.keyCode) app=\(event.appName ?? "?")\n"
+            debugLog(msg)
         }
 
-        lastPrintableTime = now
-        burstKeystrokes += 1
+        if let last = recentKeyTimes.last, now - last < minInterval {
+            return
+        }
 
-        guard let start = burstStartTime else { return }
-        let elapsed = max(0.1, now - start)
+        recentKeyTimes.append(now)
+        recentKeyTimes = recentKeyTimes.filter { now - $0 <= windowSize }
+
+        guard recentKeyTimes.count >= 10,
+              let first = recentKeyTimes.first else {
+            currentWPM = 0
+            return
+        }
+
+        let elapsed = now - first
+        guard elapsed >= 2.0 else {
+            currentWPM = 0
+            return
+        }
+
         let minutes = elapsed / 60.0
-        currentWPM = minutes > 0 ? (Double(burstKeystrokes) / 5.0) / minutes : 0
+        currentWPM = (Double(recentKeyTimes.count) / 5.0) / minutes
+    }
+
+    private func debugLog(_ msg: String) {
+        let logPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("typeboi-debug.log")
+        if let data = msg.data(using: .utf8) {
+            if FileManager.default.fileExists(atPath: logPath.path) {
+                if let handle = try? FileHandle(forWritingTo: logPath) {
+                    handle.seekToEndOfFile()
+                    handle.write(data)
+                    handle.closeFile()
+                }
+            } else {
+                try? data.write(to: logPath)
+            }
+        }
     }
 }
