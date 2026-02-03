@@ -208,6 +208,7 @@ struct MenuBarView: View {
                     AppRow(app: app)
                 }
             }
+            .padding(.trailing, Spacing.sm)
         }
     }
 
@@ -455,6 +456,7 @@ struct ExcludedAppsView: View {
                     }
                 }
             }
+            .padding(.trailing, Spacing.sm)
         }
     }
 }

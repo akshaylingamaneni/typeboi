@@ -243,6 +243,7 @@ struct GitHubHeatmap: View {
                             weeksGrid(data: data)
                         }
                         .padding(.trailing, Spacing.md)
+                        .padding(.bottom, weeksToShow > 20 ? Spacing.md : 0)
                         .id("heatmapEnd")
                     }
                     .onAppear {
