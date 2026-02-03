@@ -82,8 +82,8 @@ struct HistoryView: View {
 
     private var heatmapHeight: CGFloat {
         switch selection {
-        case .week: return 140
-        case .month: return 160
+        case .week: return 170
+        case .month: return 170
         case .year: return 180
         }
     }
@@ -258,6 +258,8 @@ struct GitHubHeatmap: View {
                 Spacer()
                 legendView
             }
+
+            Spacer(minLength: 0)
         }
         .onAppear {
             cachedData = computeHeatmapData()
@@ -287,13 +289,31 @@ struct GitHubHeatmap: View {
     }
 
     private func monthLabelsRow(data: HeatmapData) -> some View {
-        HStack(spacing: cellSpacing) {
-            ForEach(Array(data.weeks.enumerated()), id: \.offset) { weekIndex, _ in
-                let label = data.monthLabels.first { $0.1 == weekIndex }?.0
-                Text(label ?? "")
+        let minWeekGap = 3
+        var filteredLabels: [(String, Int)] = []
+        for (label, weekIndex) in data.monthLabels {
+            if let last = filteredLabels.last {
+                if weekIndex - last.1 >= minWeekGap {
+                    filteredLabels.append((label, weekIndex))
+                }
+            } else {
+                filteredLabels.append((label, weekIndex))
+            }
+        }
+
+        return ZStack(alignment: .topLeading) {
+            HStack(spacing: cellSpacing) {
+                ForEach(0..<data.weeks.count, id: \.self) { _ in
+                    Color.clear
+                        .frame(width: cellSize, height: 14)
+                }
+            }
+
+            ForEach(filteredLabels, id: \.1) { label, weekIndex in
+                Text(label)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .frame(width: cellSize, alignment: .leading)
+                    .offset(x: CGFloat(weekIndex) * (cellSize + cellSpacing))
             }
         }
         .frame(height: 14)
