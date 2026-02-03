@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBarUpdateTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
     private var lastKeystrokeTime: Date = .distantPast
+    private var eventMonitor: Any?
 
     nonisolated func applicationDidFinishLaunching(_ notification: Notification) {
         Task { @MainActor in
@@ -131,9 +132,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func togglePopover() {
         guard let button = statusItem.button else { return }
         if popover.isShown {
-            popover.performClose(nil)
+            closePopover()
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            showPopover(button: button)
+        }
+    }
+
+    private func showPopover(button: NSStatusBarButton) {
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
+        popover.contentViewController?.view.window?.makeKey()
+
+        eventMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown]
+        ) { [weak self] _ in
+            self?.closePopover()
+        }
+    }
+
+    private func closePopover() {
+        popover.performClose(nil)
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+            eventMonitor = nil
         }
     }
 
