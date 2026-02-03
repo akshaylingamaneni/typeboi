@@ -5,71 +5,150 @@ struct HourlyChart: View {
     @State private var hoveredHour: Int?
 
     private var maxValue: Int {
-        hourly.values.map(\.keystrokesTotal).max() ?? 1
+        max(hourly.values.map(\.keystrokesTotal).max() ?? 1, 1)
+    }
+
+    private func dataPoints(in size: CGSize) -> [CGPoint] {
+        guard size.width > 0 else { return [] }
+        let stepX = size.width / 23
+        let topPadding: CGFloat = 8
+        let usableHeight = size.height - topPadding
+        return (0..<24).map { hour in
+            let value = hourly[hour]?.keystrokesTotal ?? 0
+            let x = CGFloat(hour) * stepX
+            let y = topPadding + usableHeight - (CGFloat(value) / CGFloat(maxValue) * usableHeight)
+            return CGPoint(x: x, y: y)
+        }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
-            HStack(alignment: .bottom, spacing: 2) {
-                ForEach(0..<24, id: \.self) { hour in
-                    barView(for: hour)
+            hoverInfo
+
+            GeometryReader { geo in
+                ZStack(alignment: .topLeading) {
+                    lineChart(size: geo.size)
+                    hoverOverlay(size: geo.size)
                 }
             }
-            .frame(maxWidth: .infinity)
+            .frame(height: 70)
 
-            HStack {
-                Text("12am")
-                Spacer()
-                Text("12pm")
-                Spacer()
-                Text("11pm")
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+            timeLabels
         }
     }
 
     @ViewBuilder
-    private func barView(for hour: Int) -> some View {
-        let value = hourly[hour]?.keystrokesTotal ?? 0
-        let isHovered = hoveredHour == hour
-
-        VStack(spacing: 2) {
-            if isHovered {
-                Text("\(value)")
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.secondary)
-                    .transition(.opacity.combined(with: .scale))
-            }
-
-            RoundedRectangle(cornerRadius: 3)
-                .fill(barColor(value: value, isHovered: isHovered))
-                .frame(width: 10, height: barHeight(value: value))
-                .scaleEffect(isHovered ? 1.1 : 1.0, anchor: .bottom)
-                .animation(.spring(response: 0.3), value: isHovered)
+    private var hoverInfo: some View {
+        if let hour = hoveredHour {
+            let value = hourly[hour]?.keystrokesTotal ?? 0
+            Text("\(hourFormatted(hour)) • \(value) keystrokes")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Text(" ")
+                .font(.caption)
         }
-        .frame(height: 100, alignment: .bottom)
-        .onHover { hovering in
-            withAnimation(.easeOut(duration: 0.15)) {
-                hoveredHour = hovering ? hour : nil
-            }
-        }
-        .help("\(hour):00 — \(value) keystrokes")
     }
 
-    private func barHeight(value: Int) -> CGFloat {
-        guard maxValue > 0 else { return 4 }
-        return max(4, CGFloat(value) / CGFloat(maxValue) * 80)
+    private func lineChart(size: CGSize) -> some View {
+        let points = dataPoints(in: size)
+        return Canvas { context, size in
+            guard points.count == 24 else { return }
+
+            let fillPath = Path { path in
+                path.move(to: CGPoint(x: 0, y: size.height))
+                for point in points {
+                    path.addLine(to: point)
+                }
+                path.addLine(to: CGPoint(x: size.width, y: size.height))
+                path.closeSubpath()
+            }
+
+            let gradient = Gradient(colors: [
+                Color.accentColor.opacity(0.3),
+                Color.accentColor.opacity(0.05)
+            ])
+            context.fill(
+                fillPath,
+                with: .linearGradient(gradient, startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height))
+            )
+
+            let linePath = Path { path in
+                for (i, point) in points.enumerated() {
+                    if i == 0 {
+                        path.move(to: point)
+                    } else {
+                        path.addLine(to: point)
+                    }
+                }
+            }
+
+            context.stroke(
+                linePath,
+                with: .color(Color.accentColor),
+                lineWidth: 2
+            )
+
+            for (hour, point) in points.enumerated() {
+                let value = hourly[hour]?.keystrokesTotal ?? 0
+                if value > 0 {
+                    let dotRect = CGRect(x: point.x - 3, y: point.y - 3, width: 6, height: 6)
+                    context.fill(Circle().path(in: dotRect), with: .color(Color.accentColor))
+                }
+            }
+        }
     }
 
-    private func barColor(value: Int, isHovered: Bool) -> Color {
-        if value == 0 {
-            return Color.secondary.opacity(0.15)
+    private func hoverOverlay(size: CGSize) -> some View {
+        let points = dataPoints(in: size)
+        return ZStack {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let hour = Int((value.location.x / size.width) * 24)
+                            hoveredHour = max(0, min(23, hour))
+                        }
+                        .onEnded { _ in
+                            hoveredHour = nil
+                        }
+                )
+                .onHover { hovering in
+                    if !hovering { hoveredHour = nil }
+                }
+
+            if let hour = hoveredHour, hour < points.count {
+                let point = points[hour]
+                Circle()
+                    .fill(Color.accentColor)
+                    .frame(width: 10, height: 10)
+                    .position(point)
+            }
         }
-        let intensity = Double(value) / Double(maxValue)
-        let baseOpacity = 0.4 + (intensity * 0.5)
-        return Color.accentColor.opacity(isHovered ? min(1, baseOpacity + 0.2) : baseOpacity)
+    }
+
+    private var timeLabels: some View {
+        HStack {
+            Text("12am")
+            Spacer()
+            Text("6am")
+            Spacer()
+            Text("12pm")
+            Spacer()
+            Text("6pm")
+            Spacer()
+            Text("11pm")
+        }
+        .font(.caption2)
+        .foregroundStyle(.tertiary)
+    }
+
+    private func hourFormatted(_ hour: Int) -> String {
+        if hour == 0 { return "12am" }
+        if hour < 12 { return "\(hour)am" }
+        if hour == 12 { return "12pm" }
+        return "\(hour - 12)pm"
     }
 }
 
