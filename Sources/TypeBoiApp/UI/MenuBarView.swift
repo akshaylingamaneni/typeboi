@@ -62,6 +62,8 @@ struct MenuBarView: View {
                 Spacer(minLength: Spacing.md)
                 actionButtons
             }
+            .padding(.top, Spacing.sm)
+            .padding(.trailing, Spacing.lg)
         }
     }
 
