@@ -5,12 +5,15 @@ final class StatsEngine: ObservableObject {
     @Published private(set) var stats: DailyStats
     @Published private(set) var currentWPM: Double = 0
     @Published private(set) var displayedWPM: Double = 0
+    @Published private(set) var lastBurstWPM: Double = 0
 
     private let store: StatsStore
     private let settings: AppSettings
 
     private var lastEventTime: TimeInterval?
     private var wpmUpdateTimer: Timer?
+    private var peakBurstWPM: Double = 0
+    private var wasIdle: Bool = true
 
     init(store: StatsStore, settings: AppSettings) {
         self.store = store
@@ -32,6 +35,18 @@ final class StatsEngine: ObservableObject {
                 // If idle past threshold, decay to 0 faster
                 let idleTime = self.wpmLastKeystroke.map { Date().timeIntervalSince($0) } ?? 100
                 let isIdle = idleTime > self.settings.idleThreshold
+
+                // Track peak during active typing
+                if !isIdle && self.displayedWPM > self.peakBurstWPM {
+                    self.peakBurstWPM = self.displayedWPM
+                }
+
+                // Save peak when transitioning to idle
+                if isIdle && !self.wasIdle && self.peakBurstWPM >= 10 {
+                    self.lastBurstWPM = self.peakBurstWPM
+                    self.peakBurstWPM = 0
+                }
+                self.wasIdle = isIdle
 
                 let target = isIdle ? 0.0 : self.currentWPM
                 let current = self.displayedWPM
@@ -76,6 +91,8 @@ final class StatsEngine: ObservableObject {
             wpmLastKeystroke = nil
             currentWPM = 0
             displayedWPM = 0
+            peakBurstWPM = 0
+            lastBurstWPM = 0
         }
 
         let now = Date().timeIntervalSinceReferenceDate

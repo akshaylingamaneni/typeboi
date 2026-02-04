@@ -100,13 +100,20 @@ struct MenuBarView: View {
     }
 
     private var wpmBadge: some View {
-        VStack(alignment: .trailing, spacing: 2) {
-            AnimatedWPM(wpm: statsEngine.displayedWPM)
+        let isLive = statsEngine.displayedWPM >= 5
+        let wpmValue = isLive ? statsEngine.displayedWPM : statsEngine.lastBurstWPM
+        return VStack(alignment: .trailing, spacing: 2) {
+            AnimatedWPM(wpm: wpmValue)
                 .font(.title)
                 .fontWeight(.bold)
-            Text("WPM")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                if isLive {
+                    LiveIndicator()
+                }
+                Text(isLive ? "WPM" : "Peak")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
@@ -469,6 +476,20 @@ struct MenuBarView: View {
         } catch {
             exportError = "Reset failed"
         }
+    }
+}
+
+struct LiveIndicator: View {
+    @State private var pulse = false
+
+    var body: some View {
+        Circle()
+            .fill(.green)
+            .frame(width: 6, height: 6)
+            .scaleEffect(pulse ? 1.2 : 1.0)
+            .opacity(pulse ? 0.7 : 1.0)
+            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: pulse)
+            .onAppear { pulse = true }
     }
 }
 
