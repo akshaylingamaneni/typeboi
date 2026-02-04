@@ -468,6 +468,7 @@ struct AppRow: View {
 
 struct ExcludedAppsView: View {
     @ObservedObject var settings: AppSettings
+    @State private var searchText = ""
 
     private var runningApps: [NSRunningApplication] {
         NSWorkspace.shared.runningApplications
@@ -475,34 +476,67 @@ struct ExcludedAppsView: View {
             .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
     }
 
+    private var filteredApps: [NSRunningApplication] {
+        if searchText.isEmpty {
+            return runningApps
+        }
+        return runningApps.filter {
+            ($0.localizedName ?? "").localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 6) {
-                ForEach(runningApps, id: \.processIdentifier) { app in
-                    if let bundleID = app.bundleIdentifier {
-                        HStack {
-                            Text(app.localizedName ?? bundleID)
-                                .font(.subheadline)
-                                .lineLimit(1)
-                            Spacer()
-                            Toggle("", isOn: Binding(
-                                get: { !settings.excludedBundleIDs.contains(bundleID) },
-                                set: { isIncluded in
-                                    if isIncluded {
-                                        settings.excludedBundleIDs.remove(bundleID)
-                                    } else {
-                                        settings.excludedBundleIDs.insert(bundleID)
+        VStack(spacing: Spacing.sm) {
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search apps", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(Spacing.xs)
+            .background(Color.primary.opacity(0.05))
+            .cornerRadius(6)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(filteredApps, id: \.processIdentifier) { app in
+                        if let bundleID = app.bundleIdentifier {
+                            HStack {
+                                Text(app.localizedName ?? bundleID)
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(settings.excludedBundleIDs.contains(bundleID) ? "Ignored" : "Tracking")
+                                    .font(.caption)
+                                    .foregroundStyle(settings.excludedBundleIDs.contains(bundleID) ? .secondary : .primary)
+                                Toggle("", isOn: Binding(
+                                    get: { !settings.excludedBundleIDs.contains(bundleID) },
+                                    set: { track in
+                                        if track {
+                                            settings.excludedBundleIDs.remove(bundleID)
+                                        } else {
+                                            settings.excludedBundleIDs.insert(bundleID)
+                                        }
                                     }
-                                }
-                            ))
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                            .labelsHidden()
+                                ))
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                                .labelsHidden()
+                            }
                         }
                     }
                 }
+                .padding(.trailing, Spacing.sm)
             }
-            .padding(.trailing, Spacing.sm)
         }
     }
 }
