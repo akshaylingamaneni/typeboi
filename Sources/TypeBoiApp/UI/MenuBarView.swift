@@ -522,9 +522,9 @@ struct InfoButton: View {
         .buttonStyle(.plain)
         .popover(isPresented: $showPopover, arrowEdge: .trailing) {
             Text(detail)
-                .font(.caption)
+                .font(.callout)
                 .padding(Spacing.sm)
-                .frame(maxWidth: 220)
+                .frame(maxWidth: 240)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
