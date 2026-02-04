@@ -91,13 +91,17 @@ struct HistoryView: View {
     private var filteredStats: [DailyStats] {
         let today = Date()
         let calendar = Calendar.current
-        let daysBack: Int
+        let startDate: Date
+
         switch selection {
-        case .week: daysBack = 6
-        case .month: daysBack = 29
-        case .year: daysBack = 364
+        case .week:
+            startDate = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)) ?? today
+        case .month:
+            startDate = calendar.date(from: calendar.dateComponents([.year, .month], from: today)) ?? today
+        case .year:
+            startDate = calendar.date(from: calendar.dateComponents([.year], from: today)) ?? today
         }
-        let startDate = calendar.date(byAdding: .day, value: -daysBack, to: today) ?? today
+
         let allowed = Set(dateRange(from: startDate, to: today).map { DateFormatter.isoDay.string(from: $0) })
         let lookup = Dictionary(uniqueKeysWithValues: viewModel.dailyStats.map { ($0.date, $0) })
         return allowed.sorted().compactMap { lookup[$0] }
@@ -115,6 +119,7 @@ struct HistoryView: View {
             StatCard("Backspace", value: formatted(backspace), icon: "delete.left")
             StatCard("Shortcuts", value: formatted(shortcuts), icon: "command")
         }
+        .id(selection)
     }
 
     private func formatted(_ value: Int) -> String {
