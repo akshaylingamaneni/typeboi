@@ -28,16 +28,28 @@ final class StatsEngine: ObservableObject {
         wpmUpdateTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let target = self.currentWPM
+
+                // If idle for 3+ seconds, decay to 0 faster
+                let idleTime = self.wpmLastKeystroke.map { Date().timeIntervalSince($0) } ?? 100
+                let isIdle = idleTime > 3.0
+
+                let target = isIdle ? 0.0 : self.currentWPM
                 let current = self.displayedWPM
-
                 let diff = target - current
-                let step = diff * 0.3
 
-                if abs(diff) < 0.5 {
-                    if self.displayedWPM != target {
-                        self.displayedWPM = target
-                    }
+                // Fast rise, medium decay, fast decay when idle
+                let factor: Double
+                if diff > 0 {
+                    factor = 0.3
+                } else if isIdle {
+                    factor = 0.4
+                } else {
+                    factor = 0.15
+                }
+
+                let step = diff * factor
+                if abs(diff) < 1.0 {
+                    self.displayedWPM = target
                 } else {
                     self.displayedWPM = current + step
                 }
@@ -61,6 +73,7 @@ final class StatsEngine: ObservableObject {
             lastEventTime = nil
             wpmWindowStart = nil
             wpmKeystrokeCount = 0
+            wpmLastKeystroke = nil
             currentWPM = 0
             displayedWPM = 0
         }
@@ -139,12 +152,24 @@ final class StatsEngine: ObservableObject {
 
     private var wpmKeystrokeCount: Int = 0
     private var wpmWindowStart: Date?
+    private var wpmLastKeystroke: Date?
 
     private func updateCurrentWPM(event: KeyEventContext) {
         guard event.isPrintable, !event.isAutoRepeat, !event.isShortcut else { return }
 
         let now = Date()
         let windowSize: TimeInterval = 10.0
+        let pauseThreshold: TimeInterval = 1.5
+
+        // Reset window if pause detected (thinking time shouldn't count)
+        // Keep last WPM displayed - don't zero it on pause
+        if let lastKey = wpmLastKeystroke, now.timeIntervalSince(lastKey) > pauseThreshold {
+            wpmWindowStart = now
+            wpmKeystrokeCount = 1
+            wpmLastKeystroke = now
+            return
+        }
+        wpmLastKeystroke = now
 
         if let start = wpmWindowStart {
             let elapsed = now.timeIntervalSince(start)
