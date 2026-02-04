@@ -78,7 +78,7 @@ final class StatsEngine: ObservableObject {
             displayedWPM = 0
         }
 
-        let now = event.timestamp
+        let now = Date().timeIntervalSinceReferenceDate
         var delta: TimeInterval?
         if let last = lastEventTime {
             delta = max(0, now - last)
