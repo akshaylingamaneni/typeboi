@@ -10,7 +10,6 @@ final class StatsEngine: ObservableObject {
     private let settings: AppSettings
 
     private var lastEventTime: TimeInterval?
-    private var recentKeyTimes: [TimeInterval] = []
     private var wpmUpdateTimer: Timer?
 
     init(store: StatsStore, settings: AppSettings) {
@@ -60,7 +59,8 @@ final class StatsEngine: ObservableObject {
         stats = store.todayStats
         if previousDate != stats.date {
             lastEventTime = nil
-            recentKeyTimes = []
+            wpmWindowStart = nil
+            wpmKeystrokeCount = 0
             currentWPM = 0
             displayedWPM = 0
         }
@@ -137,57 +137,37 @@ final class StatsEngine: ObservableObject {
         stats.apps[bundleID] = appStats
     }
 
-    private var debugLogEnabled = true
-    private var lastLoggedTime: TimeInterval = 0
+    private var wpmKeystrokeCount: Int = 0
+    private var wpmWindowStart: Date?
 
     private func updateCurrentWPM(event: KeyEventContext) {
         guard event.isPrintable, !event.isAutoRepeat, !event.isShortcut else { return }
-        let now = event.timestamp
+
+        let now = Date()
         let windowSize: TimeInterval = 10.0
-        let minInterval: TimeInterval = 0.03
 
-        let gap = recentKeyTimes.last.map { now - $0 } ?? 0
-
-        if debugLogEnabled {
-            let msg = "KEY: gap=\(String(format: "%.4f", gap))s code=\(event.keyCode) app=\(event.appName ?? "?")\n"
-            debugLog(msg)
-        }
-
-        if let last = recentKeyTimes.last, now - last < minInterval {
-            return
-        }
-
-        recentKeyTimes.append(now)
-        recentKeyTimes = recentKeyTimes.filter { now - $0 <= windowSize }
-
-        guard recentKeyTimes.count >= 10,
-              let first = recentKeyTimes.first else {
-            currentWPM = 0
-            return
-        }
-
-        let elapsed = now - first
-        guard elapsed >= 2.0 else {
-            currentWPM = 0
-            return
-        }
-
-        let minutes = elapsed / 60.0
-        currentWPM = (Double(recentKeyTimes.count) / 5.0) / minutes
-    }
-
-    private func debugLog(_ msg: String) {
-        let logPath = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("typeboi-debug.log")
-        if let data = msg.data(using: .utf8) {
-            if FileManager.default.fileExists(atPath: logPath.path) {
-                if let handle = try? FileHandle(forWritingTo: logPath) {
-                    handle.seekToEndOfFile()
-                    handle.write(data)
-                    handle.closeFile()
-                }
-            } else {
-                try? data.write(to: logPath)
+        if let start = wpmWindowStart {
+            let elapsed = now.timeIntervalSince(start)
+            if elapsed > windowSize {
+                wpmWindowStart = now
+                wpmKeystrokeCount = 1
+                currentWPM = 0
+                return
             }
+            wpmKeystrokeCount += 1
+
+            guard wpmKeystrokeCount >= 10, elapsed >= 2.0 else {
+                currentWPM = 0
+                return
+            }
+
+            let minutes = elapsed / 60.0
+            currentWPM = (Double(wpmKeystrokeCount) / 5.0) / minutes
+        } else {
+            wpmWindowStart = now
+            wpmKeystrokeCount = 1
+            currentWPM = 0
         }
     }
+
 }
