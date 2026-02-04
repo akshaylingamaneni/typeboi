@@ -229,12 +229,44 @@ struct MenuBarView: View {
     private var settingsView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.lg) {
+                accessibilityStatus
                 appearanceSettings
                 trackingSettings
                 excludedAppsSection
                 privacySection
             }
             .padding(.top, Spacing.sm)
+        }
+    }
+
+    private var accessibilityStatus: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Permissions")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            HStack {
+                Image(systemName: accessibility.isTrusted ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(accessibility.isTrusted ? .green : .orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Accessibility")
+                        .font(.subheadline)
+                    Text(accessibility.isTrusted ? "Granted — tracking active" : "Not granted — tracking disabled")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if !accessibility.isTrusted {
+                    Button("Grant") {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
+            .padding(Spacing.sm)
+            .glassCard()
         }
     }
 
