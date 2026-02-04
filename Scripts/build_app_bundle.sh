@@ -21,6 +21,11 @@ mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp "$BIN_PATH" "$MACOS_DIR/$APP_NAME"
 cp "$INFO_PLIST" "$CONTENTS_DIR/Info.plist"
 
+ICON_PATH="$ROOT_DIR/Resources/AppBundle/AppIcon.icns"
+if [[ -f "$ICON_PATH" ]]; then
+  cp "$ICON_PATH" "$RESOURCES_DIR/AppIcon.icns"
+fi
+
 if [[ -f "$VERSION_FILE" ]]; then
   APP_VERSION="$(cat "$VERSION_FILE")"
 else

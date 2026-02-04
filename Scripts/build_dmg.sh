@@ -21,17 +21,22 @@ fi
 
 DMG_NAME="${APP_NAME}-${APP_VERSION}.dmg"
 DMG_PATH="$DIST_DIR/$DMG_NAME"
-TMP_DIR="$(mktemp -d)"
 
-cleanup() {
-  rm -rf "$TMP_DIR"
-}
-trap cleanup EXIT
+rm -f "$DMG_PATH"
 
-mkdir -p "$TMP_DIR"
-cp -R "$APP_PATH" "$TMP_DIR/"
-
-hdiutil create -volname "$APP_NAME" -srcfolder "$TMP_DIR" -ov -format UDZO "$DMG_PATH"
+# Use create-dmg with large window and icons
+# Note: macOS Sequoia ignores some AppleScript settings (known bug)
+create-dmg \
+  --volname "$APP_NAME Installer" \
+  --window-pos 200 120 \
+  --window-size 660 420 \
+  --icon-size 128 \
+  --icon "$APP_NAME.app" 115 195 \
+  --app-drop-link 270 195 \
+  --hide-extension "$APP_NAME.app" \
+  --no-internet-enable \
+  "$DMG_PATH" \
+  "$APP_PATH"
 
 if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
   codesign --force --sign "$CODESIGN_IDENTITY" "$DMG_PATH"

@@ -656,7 +656,7 @@ struct ExcludedAppsView: View {
                     }
                     .padding(.trailing, Spacing.lg)
                 }
-            }
+                    }
         }
     }
 }
