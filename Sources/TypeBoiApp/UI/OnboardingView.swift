@@ -43,6 +43,7 @@ struct OnboardingView: View {
             Image(systemName: "keyboard")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
+                .padding(.bottom, Spacing.md)
 
             VStack(spacing: Spacing.sm) {
                 Text("Welcome to TypeBoi")
@@ -50,13 +51,14 @@ struct OnboardingView: View {
                     .fontWeight(.bold)
 
                 Text("Track your typing stats, measure your speed, and see how you use your keyboard across apps.")
-                    .font(.callout)
+                    .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .lineSpacing(2)
+                    .lineSpacing(4)
             }
             .padding(.horizontal, Spacing.md)
 
+            Spacer()
             Spacer()
         }
     }
