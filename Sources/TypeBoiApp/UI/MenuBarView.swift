@@ -274,17 +274,55 @@ struct MenuBarView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: Spacing.sm) {
-                settingRow("Idle Threshold", value: "\(Int(settings.idleThreshold))s") {
-                    Stepper("", value: $settings.idleThreshold, in: 10...120, step: 5)
+                settingRowWithHelp(
+                    "Idle Threshold",
+                    value: "\(Int(settings.idleThreshold))s",
+                    help: "WPM resets after this idle time",
+                    detail: "After this many seconds of no typing, your live WPM display fades to zero. Lower = faster reset."
+                ) {
+                    Stepper("", value: $settings.idleThreshold, in: 1...10, step: 1)
                         .labelsHidden()
                 }
 
-                settingRow("Burst Gap", value: String(format: "%.1fs", settings.burstGap)) {
-                    Stepper("", value: $settings.burstGap, in: 1...5, step: 0.5)
+                settingRowWithHelp(
+                    "Burst Gap",
+                    value: String(format: "%.1fs", settings.burstGap),
+                    help: "Pause before new typing burst",
+                    detail: "Pauses shorter than this still count as continuous typing. Longer pauses start a fresh WPM measurement, so thinking time doesn't lower your speed."
+                ) {
+                    Stepper("", value: $settings.burstGap, in: 0.5...5, step: 0.5)
                         .labelsHidden()
                 }
             }
             .glassCard()
+        }
+    }
+
+    private func settingRowWithHelp<Content: View>(
+        _ label: String,
+        value: String,
+        help: String,
+        detail: String? = nil,
+        @ViewBuilder control: () -> Content
+    ) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(label)
+                    if let detail {
+                        InfoButton(detail: detail)
+                    }
+                }
+                HStack(spacing: 4) {
+                    Text(value)
+                    Text("·")
+                    Text(help)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Spacer()
+            control()
         }
     }
 
@@ -465,6 +503,29 @@ struct ExcludedAppsView: View {
                 }
             }
             .padding(.trailing, Spacing.sm)
+        }
+    }
+}
+
+struct InfoButton: View {
+    let detail: String
+    @State private var showPopover = false
+
+    var body: some View {
+        Button {
+            showPopover.toggle()
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showPopover, arrowEdge: .trailing) {
+            Text(detail)
+                .font(.caption)
+                .padding(Spacing.sm)
+                .frame(maxWidth: 220)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

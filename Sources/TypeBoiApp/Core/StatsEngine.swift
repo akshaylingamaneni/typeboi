@@ -29,9 +29,9 @@ final class StatsEngine: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self else { return }
 
-                // If idle for 3+ seconds, decay to 0 faster
+                // If idle past threshold, decay to 0 faster
                 let idleTime = self.wpmLastKeystroke.map { Date().timeIntervalSince($0) } ?? 100
-                let isIdle = idleTime > 3.0
+                let isIdle = idleTime > self.settings.idleThreshold
 
                 let target = isIdle ? 0.0 : self.currentWPM
                 let current = self.displayedWPM
@@ -159,11 +159,10 @@ final class StatsEngine: ObservableObject {
 
         let now = Date()
         let windowSize: TimeInterval = 10.0
-        let pauseThreshold: TimeInterval = 1.5
 
         // Reset window if pause detected (thinking time shouldn't count)
         // Keep last WPM displayed - don't zero it on pause
-        if let lastKey = wpmLastKeystroke, now.timeIntervalSince(lastKey) > pauseThreshold {
+        if let lastKey = wpmLastKeystroke, now.timeIntervalSince(lastKey) > settings.burstGap {
             wpmWindowStart = now
             wpmKeystrokeCount = 1
             wpmLastKeystroke = now

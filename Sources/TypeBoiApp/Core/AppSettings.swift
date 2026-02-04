@@ -25,9 +25,9 @@ final class AppSettings: ObservableObject {
     init() {
         let defaults = UserDefaults.standard
         let idle = defaults.double(forKey: Keys.idleThreshold)
-        idleThreshold = idle > 0 ? idle : 30
+        idleThreshold = (idle > 0 && idle <= 10) ? idle : 3
         let burst = defaults.double(forKey: Keys.burstGap)
-        burstGap = burst > 0 ? burst : 2
+        burstGap = (burst > 0 && burst <= 5) ? burst : 1.5
         let excluded = defaults.stringArray(forKey: Keys.excludedBundleIDs) ?? []
         excludedBundleIDs = Set(excluded)
         let style = defaults.string(forKey: Keys.menuBarStyle) ?? MenuBarStyle.icon.rawValue
