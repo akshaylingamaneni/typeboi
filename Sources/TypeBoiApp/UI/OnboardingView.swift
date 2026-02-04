@@ -5,50 +5,52 @@ struct OnboardingView: View {
     let onComplete: () -> Void
 
     @State private var currentPage = 0
-    private let totalPages = 3
 
     var body: some View {
         VStack(spacing: 0) {
-            pageContent
-            Spacer(minLength: Spacing.md)
-            pageIndicator
+            tabBar
+            Divider().opacity(0.5)
+
+            Group {
+                switch currentPage {
+                case 0: welcomePage
+                case 1: featuresPage
+                case 2: privacyPage
+                default: welcomePage
+                }
+            }
+            .frame(maxHeight: .infinity)
+
             navigationButtons
         }
-        .padding(Spacing.lg)
-        .frame(width: 360, height: 480)
-        .background(.ultraThinMaterial)
+        .padding(Spacing.md)
+        .frame(width: 360, height: 460)
     }
 
-    @ViewBuilder
-    private var pageContent: some View {
-        switch currentPage {
-        case 0: welcomePage
-        case 1: featuresPage
-        case 2: privacyPage
-        default: welcomePage
+    private var tabBar: some View {
+        HStack(spacing: Spacing.sm) {
+            OnboardingTabButton("Welcome", icon: "hand.wave", tag: 0, selection: $currentPage)
+            OnboardingTabButton("Features", icon: "star", tag: 1, selection: $currentPage)
+            OnboardingTabButton("Privacy", icon: "lock.shield", tag: 2, selection: $currentPage)
         }
+        .padding(.bottom, Spacing.sm)
     }
 
     private var welcomePage: some View {
         VStack(spacing: Spacing.lg) {
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(Color.accentColor.gradient)
-                    .frame(width: 88, height: 88)
-                Image(systemName: "keyboard.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(.white)
-            }
+            Image(systemName: "keyboard")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
 
             VStack(spacing: Spacing.sm) {
                 Text("Welcome to TypeBoi")
-                    .font(.title)
+                    .font(.title2)
                     .fontWeight(.bold)
 
                 Text("Track your typing stats, measure your speed, and see how you use your keyboard across apps.")
-                    .font(.body)
+                    .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(2)
@@ -60,130 +62,114 @@ struct OnboardingView: View {
     }
 
     private var featuresPage: some View {
-        VStack(spacing: Spacing.lg) {
-            Text("Features")
-                .font(.title2)
-                .fontWeight(.bold)
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("What you get")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+                .padding(.top, Spacing.sm)
 
-            VStack(spacing: Spacing.md) {
-                OnboardingFeatureRow(
-                    icon: "speedometer",
-                    color: .blue,
-                    title: "Live WPM",
-                    description: "Real-time words per minute"
-                )
-                OnboardingFeatureRow(
-                    icon: "chart.bar.fill",
-                    color: .green,
-                    title: "Daily Stats",
-                    description: "Keystrokes, backspaces, shortcuts"
-                )
-                OnboardingFeatureRow(
-                    icon: "calendar",
-                    color: .orange,
-                    title: "History",
-                    description: "GitHub-style activity heatmap"
-                )
-                OnboardingFeatureRow(
-                    icon: "square.grid.2x2.fill",
-                    color: .purple,
-                    title: "Per-App Stats",
-                    description: "See where you type most"
-                )
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                FeatureItem(icon: "speedometer", title: "Live WPM", description: "Real-time words per minute as you type")
+                FeatureItem(icon: "chart.bar", title: "Daily Stats", description: "Keystrokes, backspaces, and shortcuts tracked")
+                FeatureItem(icon: "calendar", title: "History", description: "GitHub-style heatmap of your activity")
+                FeatureItem(icon: "square.grid.2x2", title: "Per-App Stats", description: "See which apps you type most in")
+                FeatureItem(icon: "menubar.rectangle", title: "Menu Bar", description: "Quick access from your menu bar")
             }
-            .padding(.horizontal, Spacing.sm)
 
             Spacer()
         }
     }
 
     private var privacyPage: some View {
-        VStack(spacing: Spacing.lg) {
-            ZStack {
-                Circle()
-                    .fill(Color.green.gradient)
-                    .frame(width: 64, height: 64)
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.white)
-            }
-
-            Text("Your Privacy")
-                .font(.title2)
-                .fontWeight(.bold)
-
-            VStack(alignment: .leading, spacing: Spacing.sm) {
-                OnboardingPrivacyRow(icon: "checkmark.circle.fill", text: "Counts only — never logs keys")
-                OnboardingPrivacyRow(icon: "checkmark.circle.fill", text: "No passwords or text stored")
-                OnboardingPrivacyRow(icon: "checkmark.circle.fill", text: "Data stays on your Mac")
-                OnboardingPrivacyRow(icon: "checkmark.circle.fill", text: "No cloud or analytics")
-            }
-            .padding(Spacing.md)
-            .background(Color.green.opacity(0.1))
-            .cornerRadius(12)
-
-            VStack(spacing: Spacing.xs) {
-                Text("Accessibility Permission")
-                    .font(.subheadline)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.md) {
+                Text("Your data is safe")
+                    .font(.title3)
                     .fontWeight(.semibold)
-                Text("Required to count keystrokes system-wide.\nWe only count — never read content.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
+                    .padding(.top, Spacing.sm)
 
-            Spacer()
-        }
-    }
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    PrivacyItem(text: "Counts only — never logs what you type")
+                    PrivacyItem(text: "No passwords or secrets stored")
+                    PrivacyItem(text: "Data stays on your Mac — no cloud")
+                    PrivacyItem(text: "No network, analytics, or telemetry")
+                    PrivacyItem(text: "You can inspect your data anytime")
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard()
 
-    private var pageIndicator: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<totalPages, id: \.self) { i in
-                Capsule()
-                    .fill(i == currentPage ? Color.accentColor : Color.secondary.opacity(0.3))
-                    .frame(width: i == currentPage ? 20 : 8, height: 8)
-                    .animation(.spring(response: 0.3), value: currentPage)
+                VStack(alignment: .leading, spacing: Spacing.md) {
+                    Text("Why Accessibility Permission?")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    VStack(alignment: .leading, spacing: Spacing.sm) {
+                        Text("macOS requires this permission to monitor keystrokes system-wide.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+
+                        Text("Used by text expanders, clipboard managers, and keyboard utilities.")
+                            .font(.callout)
+                            .foregroundStyle(.tertiary)
+                    }
+
+                    Text("We only count key events — never capture, store, or transmit actual characters.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, Spacing.xs)
+                }
+                .padding(Spacing.md)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard()
+
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    Text("Data Location")
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+
+                    Text("~/Library/Application Support/TypeBoi/")
+                        .font(.system(.callout, design: .monospaced))
+                        .foregroundStyle(.secondary)
+
+                    Text("Plain JSON files you can open and inspect.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.top, Spacing.sm)
             }
+            .padding(.trailing, Spacing.sm)
         }
-        .padding(.bottom, Spacing.md)
     }
 
     private var navigationButtons: some View {
         HStack {
             if currentPage > 0 {
                 Button("Back") {
-                    withAnimation(.spring(response: 0.3)) { currentPage -= 1 }
+                    withAnimation { currentPage -= 1 }
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-            } else {
-                Spacer().frame(width: 50)
             }
 
             Spacer()
 
-            if currentPage < totalPages - 1 {
-                Button {
-                    withAnimation(.spring(response: 0.3)) { currentPage += 1 }
-                } label: {
-                    Text("Continue")
-                        .fontWeight(.semibold)
-                        .frame(width: 100)
+            if currentPage < 2 {
+                Button("Next") {
+                    withAnimation { currentPage += 1 }
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .controlSize(.regular)
             } else {
-                Button {
+                Button("Get Started") {
                     requestPermissionAndComplete()
-                } label: {
-                    Text("Get Started")
-                        .fontWeight(.semibold)
-                        .frame(width: 110)
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .controlSize(.regular)
             }
         }
+        .padding(.top, Spacing.sm)
     }
 
     private func requestPermissionAndComplete() {
@@ -195,47 +181,78 @@ struct OnboardingView: View {
     }
 }
 
-struct OnboardingFeatureRow: View {
+struct OnboardingTabButton: View {
+    let title: String
     let icon: String
-    let color: Color
+    let tag: Int
+    @Binding var selection: Int
+
+    init(_ title: String, icon: String, tag: Int, selection: Binding<Int>) {
+        self.title = title
+        self.icon = icon
+        self.tag = tag
+        self._selection = selection
+    }
+
+    private var isSelected: Bool { selection == tag }
+
+    var body: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selection = tag
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 14))
+                Text(title)
+                    .font(.caption2)
+            }
+            .foregroundStyle(isSelected ? .primary : .tertiary)
+            .animation(.easeInOut(duration: 0.15), value: isSelected)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.sm)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable(false)
+    }
+}
+
+struct FeatureItem: View {
+    let icon: String
     let title: String
     let description: String
 
     var body: some View {
-        HStack(spacing: Spacing.md) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(color.gradient)
-                    .frame(width: 44, height: 44)
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundStyle(.white)
-            }
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline)
-                    .fontWeight(.semibold)
+                    .fontWeight(.medium)
                 Text(description)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Spacer()
         }
     }
 }
 
-struct OnboardingPrivacyRow: View {
-    let icon: String
+struct PrivacyItem: View {
     let text: String
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
-            Image(systemName: icon)
+            Image(systemName: "checkmark")
+                .font(.subheadline)
+                .fontWeight(.bold)
                 .foregroundStyle(.green)
-                .font(.subheadline)
             Text(text)
-                .font(.subheadline)
-            Spacer()
+                .font(.callout)
         }
     }
 }
