@@ -133,11 +133,12 @@ struct OnboardingView: View {
                         .font(.system(.callout, design: .monospaced))
                         .foregroundStyle(.secondary)
 
-                    Text("Plain JSON files you can open and inspect.")
-                        .font(.caption)
+                    Text("Plain JSON files — open them anytime to see exactly what's stored.")
+                        .font(.callout)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.lg)
             }
             .padding(.trailing, Spacing.sm)
         }
