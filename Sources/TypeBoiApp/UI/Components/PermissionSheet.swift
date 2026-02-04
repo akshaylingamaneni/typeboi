@@ -3,12 +3,30 @@ import AppKit
 
 struct PermissionSheet: View {
     @ObservedObject var accessibility: AccessibilityMonitor
+    var onPermissionGranted: (() -> Void)?
     @State private var isPolling = false
     @State private var showSuccess = false
     @State private var showRestartHint = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
+        ZStack {
+            if showSuccess {
+                successOverlay
+            } else {
+                permissionRequestView
+            }
+        }
+        .frame(width: 320, height: 420)
+        .onAppear {
+            startPolling()
+        }
+        .onDisappear {
+            isPolling = false
+        }
+    }
+
+    private var permissionRequestView: some View {
         VStack(spacing: Spacing.xl) {
             Spacer()
 
@@ -71,18 +89,6 @@ struct PermissionSheet: View {
             Spacer()
         }
         .padding(Spacing.xl)
-        .frame(width: 320, height: 420)
-        .onAppear {
-            startPolling()
-        }
-        .onDisappear {
-            isPolling = false
-        }
-        .overlay {
-            if showSuccess {
-                successOverlay
-            }
-        }
     }
 
     private var successOverlay: some View {
@@ -95,9 +101,12 @@ struct PermissionSheet: View {
             Text("Permission Granted!")
                 .font(.title3)
                 .fontWeight(.semibold)
+
+            Text("Tracking is now active")
+                .font(.callout)
+                .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial)
         .transition(.opacity)
     }
 
@@ -144,6 +153,8 @@ struct PermissionSheet: View {
         withAnimation(.spring(response: 0.4)) {
             showSuccess = true
         }
+        onPermissionGranted?()
+        NotificationCenter.default.post(name: .accessibilityPermissionGranted, object: nil)
         Task {
             try? await Task.sleep(for: .seconds(1.5))
             await MainActor.run {
@@ -151,6 +162,10 @@ struct PermissionSheet: View {
             }
         }
     }
+}
+
+extension Notification.Name {
+    static let accessibilityPermissionGranted = Notification.Name("accessibilityPermissionGranted")
 }
 
 #Preview {

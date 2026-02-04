@@ -6,22 +6,34 @@ final class KeyboardMonitor {
     private let eventMask = CGEventMask(1 << CGEventType.keyDown.rawValue)
 
     var onKeyEvent: ((KeyEventContext) -> Void)?
+    var onTapDisabled: (() -> Void)?
 
     func start() -> Bool {
         let callback: CGEventTapCallBack = { proxy, type, event, refcon in
-            guard type == .keyDown else { return Unmanaged.passUnretained(event) }
             guard let refcon = refcon else { return Unmanaged.passUnretained(event) }
             let monitor = Unmanaged<KeyboardMonitor>.fromOpaque(refcon).takeUnretainedValue()
+
+            // Handle tap being disabled (permission revoked)
+            if type == .tapDisabledByUserInput || type == .tapDisabledByTimeout {
+                monitor.onTapDisabled?()
+                return Unmanaged.passUnretained(event)
+            }
+
+            guard type == .keyDown else { return Unmanaged.passUnretained(event) }
             monitor.handle(event: event)
             return Unmanaged.passUnretained(event)
         }
 
         let refcon = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
+
+        // Include tap disabled events in the mask
+        let fullMask = eventMask | CGEventMask(1 << CGEventType.tapDisabledByUserInput.rawValue) | CGEventMask(1 << CGEventType.tapDisabledByTimeout.rawValue)
+
         guard let tap = CGEvent.tapCreate(
             tap: .cghidEventTap,
             place: .headInsertEventTap,
-            options: .defaultTap,
-            eventsOfInterest: eventMask,
+            options: .listenOnly,
+            eventsOfInterest: fullMask,
             callback: callback,
             userInfo: refcon
         ) else {

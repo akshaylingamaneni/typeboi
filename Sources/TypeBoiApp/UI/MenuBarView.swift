@@ -236,6 +236,7 @@ struct MenuBarView: View {
                 privacySection
             }
             .padding(.top, Spacing.sm)
+            .padding(.trailing, Spacing.lg)
         }
     }
 

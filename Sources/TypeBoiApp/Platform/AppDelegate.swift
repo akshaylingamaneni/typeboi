@@ -36,6 +36,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.lastKeystrokeTime = Date()
             }
         }
+        monitor.onTapDisabled = { [weak self] in
+            Task { @MainActor in
+                self?.handleTapDisabled()
+            }
+        }
 
         requestAccessibilityIfNeeded()
         accessibilityMonitor.refresh()
@@ -45,6 +50,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupPopover()
         setupSaveTimer()
         setupMenuBarUpdates()
+        setupPermissionListener()
+    }
+
+    private func setupPermissionListener() {
+        NotificationCenter.default.addObserver(
+            forName: .accessibilityPermissionGranted,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.restartMonitor()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .accessibilityPermissionRevoked,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.stopMonitor()
+            }
+        }
+    }
+
+    private func handleTapDisabled() {
+        monitor.stop()
+        accessibilityMonitor.forceRevoked()
+    }
+
+    private func stopMonitor() {
+        monitor.stop()
+    }
+
+    private func restartMonitor() {
+        monitor.stop()
+        accessibilityMonitor.refresh()
+        if accessibilityMonitor.isTrusted {
+            _ = monitor.start()
+        }
     }
 
     nonisolated func applicationWillTerminate(_ notification: Notification) {
