@@ -76,6 +76,10 @@ final class StatsStore {
         dirty = true
     }
 
+    var dataDirectoryURL: URL? {
+        try? dataDirectory()
+    }
+
     private func dataDirectory() throws -> URL {
         let appSupport = try fileManager.url(
             for: .applicationSupportDirectory,

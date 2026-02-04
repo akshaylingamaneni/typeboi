@@ -21,6 +21,9 @@ final class AppSettings: ObservableObject {
     @Published var menuBarStyle: MenuBarStyle {
         didSet { UserDefaults.standard.set(menuBarStyle.rawValue, forKey: Keys.menuBarStyle) }
     }
+    @Published var hasCompletedOnboarding: Bool {
+        didSet { UserDefaults.standard.set(hasCompletedOnboarding, forKey: Keys.hasCompletedOnboarding) }
+    }
 
     init() {
         let defaults = UserDefaults.standard
@@ -32,6 +35,7 @@ final class AppSettings: ObservableObject {
         excludedBundleIDs = Set(excluded)
         let style = defaults.string(forKey: Keys.menuBarStyle) ?? MenuBarStyle.icon.rawValue
         menuBarStyle = MenuBarStyle(rawValue: style) ?? .icon
+        hasCompletedOnboarding = defaults.bool(forKey: Keys.hasCompletedOnboarding)
     }
 
     private enum Keys {
@@ -39,5 +43,6 @@ final class AppSettings: ObservableObject {
         static let burstGap = "burstGapSeconds"
         static let excludedBundleIDs = "excludedBundleIDs"
         static let menuBarStyle = "menuBarStyle"
+        static let hasCompletedOnboarding = "hasCompletedOnboarding"
     }
 }

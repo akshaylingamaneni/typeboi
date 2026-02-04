@@ -9,6 +9,7 @@ struct MenuBarView: View {
 
     @State private var selectedTab = 0
     @State private var showPermissionSheet = false
+    @State private var showOnboarding = false
     @State private var showResetConfirm = false
     @State private var showExportSuccess = false
     @State private var showResetSuccess = false
@@ -22,11 +23,19 @@ struct MenuBarView: View {
         }
         .padding(Spacing.md)
         .frame(minWidth: 360, minHeight: 520)
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(accessibility: accessibility) {
+                settings.hasCompletedOnboarding = true
+                showOnboarding = false
+            }
+        }
         .sheet(isPresented: $showPermissionSheet) {
             PermissionSheet(accessibility: accessibility)
         }
         .onAppear {
-            if !accessibility.isTrusted {
+            if !settings.hasCompletedOnboarding {
+                showOnboarding = true
+            } else if !accessibility.isTrusted {
                 showPermissionSheet = true
             }
         }
@@ -223,8 +232,46 @@ struct MenuBarView: View {
                 appearanceSettings
                 trackingSettings
                 excludedAppsSection
+                privacySection
             }
             .padding(.top, Spacing.sm)
+        }
+    }
+
+    private var privacySection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            Text("Privacy & Data")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: Spacing.sm) {
+                PrivacyBullet(icon: "checkmark.shield", text: "Counts only — no keys or text logged", positive: true)
+                PrivacyBullet(icon: "lock.shield", text: "No passwords, secrets, or content stored", positive: true)
+                PrivacyBullet(icon: "internaldrive", text: "Data stays on your Mac — no cloud", positive: true)
+                PrivacyBullet(icon: "network.slash", text: "No network, analytics, or telemetry", positive: true)
+
+                Divider().opacity(0.5)
+
+                if let dataURL = statsStore.dataDirectoryURL {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Your data")
+                                .font(.subheadline)
+                            Text(dataURL.path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Open") {
+                            NSWorkspace.shared.open(dataURL)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                    }
+                }
+            }
+            .glassCard()
         }
     }
 
@@ -341,12 +388,12 @@ struct MenuBarView: View {
 
     private var excludedAppsSection: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
-            Text("Excluded Apps")
+            Text("App Tracking")
                 .font(.subheadline)
                 .fontWeight(.medium)
                 .foregroundStyle(.secondary)
 
-            ExcludedAppsView(settings: settings)
+            ExcludedAppsView(settings: settings, typedApps: statsEngine.stats.apps)
                 .frame(maxHeight: 180)
         }
     }
@@ -466,22 +513,50 @@ struct AppRow: View {
     }
 }
 
+struct AppTrackingItem: Identifiable {
+    let id: String
+    let name: String
+    let keystrokeCount: Int
+}
+
 struct ExcludedAppsView: View {
     @ObservedObject var settings: AppSettings
+    let typedApps: [String: AppStats]
     @State private var searchText = ""
 
-    private var runningApps: [NSRunningApplication] {
-        NSWorkspace.shared.runningApplications
-            .filter { $0.bundleIdentifier != nil && $0.activationPolicy != .prohibited }
-            .sorted { ($0.localizedName ?? "") < ($1.localizedName ?? "") }
+    private var allApps: [AppTrackingItem] {
+        var items: [String: AppTrackingItem] = [:]
+
+        // Add apps with typing data
+        for (bundleID, stats) in typedApps {
+            items[bundleID] = AppTrackingItem(
+                id: bundleID,
+                name: stats.appName,
+                keystrokeCount: stats.keystrokesTotal
+            )
+        }
+
+        // Add excluded apps that might not have typing data yet
+        for bundleID in settings.excludedBundleIDs {
+            if items[bundleID] == nil {
+                items[bundleID] = AppTrackingItem(
+                    id: bundleID,
+                    name: bundleID.components(separatedBy: ".").last ?? bundleID,
+                    keystrokeCount: 0
+                )
+            }
+        }
+
+        return items.values.sorted { $0.keystrokeCount > $1.keystrokeCount }
     }
 
-    private var filteredApps: [NSRunningApplication] {
+    private var filteredApps: [AppTrackingItem] {
         if searchText.isEmpty {
-            return runningApps
+            return allApps
         }
-        return runningApps.filter {
-            ($0.localizedName ?? "").localizedCaseInsensitiveContains(searchText)
+        return allApps.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText) ||
+            $0.id.localizedCaseInsensitiveContains(searchText)
         }
     }
 
@@ -506,25 +581,37 @@ struct ExcludedAppsView: View {
             .background(Color.primary.opacity(0.05))
             .cornerRadius(6)
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(filteredApps, id: \.processIdentifier) { app in
-                        if let bundleID = app.bundleIdentifier {
+            if filteredApps.isEmpty {
+                Text("No apps with typing data yet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 6) {
+                        ForEach(filteredApps) { app in
                             HStack {
-                                Text(app.localizedName ?? bundleID)
-                                    .font(.subheadline)
-                                    .lineLimit(1)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(app.name)
+                                        .font(.subheadline)
+                                        .lineLimit(1)
+                                    if app.keystrokeCount > 0 {
+                                        Text("\(app.keystrokeCount) keys")
+                                            .font(.caption2)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                }
                                 Spacer()
-                                Text(settings.excludedBundleIDs.contains(bundleID) ? "Ignored" : "Tracking")
+                                Text(settings.excludedBundleIDs.contains(app.id) ? "Ignored" : "Tracking")
                                     .font(.caption)
-                                    .foregroundStyle(settings.excludedBundleIDs.contains(bundleID) ? .secondary : .primary)
+                                    .foregroundStyle(settings.excludedBundleIDs.contains(app.id) ? .secondary : .primary)
                                 Toggle("", isOn: Binding(
-                                    get: { !settings.excludedBundleIDs.contains(bundleID) },
+                                    get: { !settings.excludedBundleIDs.contains(app.id) },
                                     set: { track in
                                         if track {
-                                            settings.excludedBundleIDs.remove(bundleID)
+                                            settings.excludedBundleIDs.remove(app.id)
                                         } else {
-                                            settings.excludedBundleIDs.insert(bundleID)
+                                            settings.excludedBundleIDs.insert(app.id)
                                         }
                                     }
                                 ))
@@ -534,9 +621,26 @@ struct ExcludedAppsView: View {
                             }
                         }
                     }
+                    .padding(.trailing, Spacing.lg)
                 }
-                .padding(.trailing, Spacing.sm)
             }
+        }
+    }
+}
+
+struct PrivacyBullet: View {
+    let icon: String
+    let text: String
+    let positive: Bool
+
+    var body: some View {
+        HStack(spacing: Spacing.sm) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(positive ? .green : .secondary)
+                .frame(width: 16)
+            Text(text)
+                .font(.caption)
         }
     }
 }
